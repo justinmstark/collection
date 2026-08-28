@@ -21,7 +21,11 @@ async function fetchThumbnail(storageKey: string): Promise<Buffer | null> {
     if (!res.ok) return null;
     const raw = Buffer.from(await res.arrayBuffer());
     // Resize to 60×80 max, convert to JPEG for small PDF footprint
-    return await sharp(raw).resize(60, 80, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
+    return await sharp(raw)
+      .resize(60, 80, { fit: "inside", withoutEnlargement: true })
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .jpeg({ quality: 70 })
+      .toBuffer();
   } catch {
     return null;
   }
