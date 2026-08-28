@@ -142,6 +142,13 @@ export default function HomePage() {
               ⬛ Shelf
             </button>
           </div>
+          <a
+            href="/api/collection/export"
+            download
+            className="bg-navy-light hover:bg-navy-mid border border-gold/20 text-gold font-semibold px-3 py-2 rounded text-sm transition-colors"
+          >
+            ↓ Export PDF
+          </a>
           <Link
             href="/collection/add"
             className="bg-gold hover:bg-gold-light text-navy font-semibold px-4 py-2 rounded text-sm transition-colors"
