@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import sharp from "sharp";
 
+export const dynamic = "force-dynamic";
+
 const MINIO_INTERNAL = process.env.MINIO_ENDPOINT
   ? `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT ?? 9000}`
   : "http://minio:9000";
@@ -108,19 +110,26 @@ export async function GET(req: NextRequest) {
       doc.fillColor(GOLD).fontSize(10).font("Helvetica-Bold").text(cat.toUpperCase(), margin + 8, y + 5);
       y += 28;
 
-      // Column headers
+      // Column headers — lineBreak:false prevents pdfkit cursor drift on multi-column draws
       doc.fillColor(GRAY).fontSize(7).font("Helvetica-Bold");
       const C = { name: margin + 44, dist: margin + 200, region: margin + 288, age: margin + 362, abv: margin + 392, status: margin + 424, value: margin + 476 };
-      doc.text("NAME", C.name, y);
-      doc.text("DISTILLERY", C.dist, y);
-      doc.text("REGION", C.region, y);
-      doc.text("AGE", C.age, y);
-      doc.text("ABV", C.abv, y);
-      doc.text("STATUS", C.status, y);
-      doc.text("VALUE", C.value, y, { width: contentW - (C.value - margin), align: "right" });
+      doc.text("NAME", C.name, y, { lineBreak: false });
+      doc.text("DISTILLERY", C.dist, y, { lineBreak: false });
+      doc.text("REGION", C.region, y, { lineBreak: false });
+      doc.text("AGE", C.age, y, { lineBreak: false });
+      doc.text("ABV", C.abv, y, { lineBreak: false });
+      doc.text("STATUS", C.status, y, { lineBreak: false });
+      doc.text("VALUE", C.value, y, { width: contentW - (C.value - margin), align: "right", lineBreak: false });
+      doc.y = y + 12; doc.x = margin;
       y += 12;
       doc.rect(margin, y, contentW, 0.5).fill(LIGHT);
       y += 6;
+
+      // truncate helper — pdfkit width wraps (not clips); we truncate to avoid cursor blowout
+      const clip = (s: string, maxPt: number, ptPerChar = 4.2) => {
+        const max = Math.floor(maxPt / ptPerChar);
+        return s.length > max ? s.slice(0, max - 1) + "…" : s;
+      };
 
       for (let ri = 0; ri < catItems.length; ri++) {
         const item = catItems[ri];
@@ -144,23 +153,26 @@ export async function GET(req: NextRequest) {
         }
 
         doc.fillColor(NAVY).fontSize(8).font("Helvetica-Bold")
-          .text(displayName.length > 30 ? displayName.slice(0, 28) + "…" : displayName, C.name, y + 2, { width: 148 });
+          .text(clip(displayName, 148, 4.8), C.name, y + 2, { lineBreak: false });
         doc.fillColor(GRAY).fontSize(7).font("Helvetica");
-        if (p?.smwsCode) doc.text(p.smwsCode, C.name, y + 13, { width: 148 });
+        if (p?.smwsCode) doc.text(p.smwsCode, C.name, y + 13, { lineBreak: false });
 
-        doc.text(p?.producer?.name ?? "—", C.dist, y + 2, { width: 84 });
-        doc.text(p?.producer?.region?.name ?? "—", C.region, y + 2, { width: 70 });
-        doc.text(p?.age != null ? `${p.age} yr` : "NAS", C.age, y + 2, { width: 28 });
-        doc.text(p?.abv != null ? `${p.abv}%` : "—", C.abv, y + 2, { width: 30 });
-        doc.text(item.status, C.status, y + 2, { width: 46 });
+        doc.text(clip(p?.producer?.name ?? "—", 84), C.dist, y + 2, { lineBreak: false });
+        doc.text(clip(p?.producer?.region?.name ?? "—", 70), C.region, y + 2, { lineBreak: false });
+        doc.text(p?.age != null ? `${p.age} yr` : "NAS", C.age, y + 2, { lineBreak: false });
+        doc.text(p?.abv != null ? `${p.abv}%` : "—", C.abv, y + 2, { lineBreak: false });
+        doc.text(item.status, C.status, y + 2, { lineBreak: false });
 
         if (val != null) {
           doc.fillColor(GOLD).fontSize(8).font("Helvetica-Bold")
-            .text(aud(val), C.value, y + 2, { width: contentW - (C.value - margin), align: "right" });
+            .text(aud(val), C.value, y + 2, { width: contentW - (C.value - margin), align: "right", lineBreak: false });
         } else {
           doc.fillColor(GRAY).fontSize(8).font("Helvetica")
-            .text("—", C.value, y + 2, { width: contentW - (C.value - margin), align: "right" });
+            .text("—", C.value, y + 2, { width: contentW - (C.value - margin), align: "right", lineBreak: false });
         }
+
+        // Explicitly reset pdfkit cursor after every row so it can't drift past page bottom
+        doc.y = y + rowH; doc.x = margin;
 
         doc.rect(margin, y + rowH - 3, contentW, 0.3).fill(LIGHT);
         y += rowH;
@@ -178,10 +190,13 @@ export async function GET(req: NextRequest) {
 
     // Page numbers — must be added BEFORE doc.end()
     const range = doc.bufferedPageRange();
+    // pageNumY must be < pageH - margin (= 801.89 for A4/40pt margins); beyond that pdfkit adds a new page
+    const pageNumY = pageH - margin - 12;
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(range.start + i);
+      doc.x = margin; doc.y = margin;
       doc.fillColor(GRAY).fontSize(7).font("Helvetica")
-        .text(`Page ${i + 1} of ${range.count}`, margin, pageH - 25, { align: "right", width: contentW });
+        .text(`Page ${i + 1} of ${range.count}`, margin, pageNumY, { align: "right", width: contentW, lineBreak: false });
     }
 
     doc.end();
