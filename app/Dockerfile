@@ -16,6 +16,7 @@ COPY --from=deps /app/node_modules ./node_modules
 ARG CACHEBUST=1
 COPY . .
 RUN npx prisma generate
+RUN mkdir -p public
 # MinIO public URL is baked in at build time (NEXT_PUBLIC_ vars)
 ARG NEXT_PUBLIC_MINIO_PUBLIC_URL=http://localhost:9000
 ARG NEXT_PUBLIC_MINIO_BUCKET=collection-images
