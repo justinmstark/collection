@@ -41,6 +41,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
             NEXT_PUBLIC_MINIO_BUCKET=collection-images
+            CACHEBUST=${{ github.sha }}
           tags: |
             ${{ steps.tag.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

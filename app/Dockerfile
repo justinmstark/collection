@@ -10,6 +10,8 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
+# Bust cache if source changes aren't being picked up
+ARG CACHEBUST=1
 COPY . .
 RUN npx prisma generate
 # MinIO public URL is baked in at build time (NEXT_PUBLIC_ vars)
