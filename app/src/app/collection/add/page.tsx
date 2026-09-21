@@ -17,6 +17,9 @@ interface BottleData {
   caskType: string;
   description: string;
   smwsCode: string;
+  vintage: string;
+  drinkFrom: string;
+  drinkUntil: string;
 }
 
 interface DetectedBottle extends BottleData {
@@ -31,6 +34,7 @@ const empty: BottleData = {
   name: "", producer: "", region: "", country: "",
   category: "whisky", subcategory: "", age: "", abv: "",
   caskType: "", description: "", smwsCode: "",
+  vintage: "", drinkFrom: "", drinkUntil: "",
 };
 
 const CONFIDENCE_STYLE: Record<string, string> = {
@@ -507,11 +511,18 @@ export default function AddBottlePage() {
               </select>
             </div>
             {field("Subcategory", "subcategory", { placeholder: "e.g. single malt, bourbon" })}
+            {form.category === "wine" && (
+              <div className="grid grid-cols-3 gap-4">
+                {field("Vintage", "vintage", { type: "number", placeholder: "2022" })}
+                {field("Drink From", "drinkFrom", { type: "number", placeholder: "2025" })}
+                {field("Drink Until", "drinkUntil", { type: "number", placeholder: "2032" })}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               {field("Age (years)", "age", { type: "number", placeholder: "12" })}
               {field("ABV (%)", "abv", { type: "number", placeholder: "46.0" })}
             </div>
-            {field("Cask Type", "caskType", { placeholder: "e.g. ex-bourbon, sherry" })}
+            {form.category !== "wine" && field("Cask Type", "caskType", { placeholder: "e.g. ex-bourbon, sherry" })}
             <div>
               <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Description / Tasting Notes</label>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Flavour notes, aromas…" />

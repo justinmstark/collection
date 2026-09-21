@@ -23,6 +23,7 @@ interface Item {
   purchaseDate: string | null;
   notes: string | null;
   product: {
+    id: string;
     name: string;
     category: string;
     subcategory: string | null;
@@ -31,6 +32,9 @@ interface Item {
     caskType: string | null;
     description: string | null;
     smwsCode: string | null;
+    vintage: number | null;
+    drinkFrom: number | null;
+    drinkUntil: number | null;
     producer: { name: string; region: { name: string; country: string } | null } | null;
   } | null;
   images: ItemImage[];
@@ -56,7 +60,12 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
   const [editNotes, setEditNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [quantitySaving, setQuantitySaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [editDescription, setEditDescription] = useState("");
+  const [savingDescription, setSavingDescription] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
 
   const [findingImages, setFindingImages] = useState(false);
   const [imageResults, setImageResults] = useState<ImageResult[]>([]);
@@ -74,6 +83,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
     const data: Item = await res.json();
     setItem(data);
     setEditNotes(data.notes ?? "");
+    setEditDescription(data.product?.description ?? "");
     const primary = data.images.find((i) => i.isPrimary) ?? data.images[0];
     setActiveImage(primary?.storageKey ?? null);
     setLoading(false);
@@ -93,6 +103,18 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
     setStatusSaving(false);
   }
 
+  async function handleQuantityChange(newQty: number) {
+    if (!item || newQty < 1 || quantitySaving) return;
+    setQuantitySaving(true);
+    await fetch(`/api/collection/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: newQty }),
+    });
+    setItem({ ...item, quantity: newQty });
+    setQuantitySaving(false);
+  }
+
   async function handleSaveNotes() {
     setSavingNotes(true);
     await fetch(`/api/collection/${id}`, {
@@ -102,6 +124,18 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
     });
     setSavingNotes(false);
     if (item) setItem({ ...item, notes: editNotes });
+  }
+
+  async function handleSaveDescription() {
+    if (!item?.product) return;
+    setSavingDescription(true);
+    await fetch(`/api/products/${item.product.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: editDescription }),
+    });
+    setSavingDescription(false);
+    if (item) setItem({ ...item, product: { ...item.product, description: editDescription } });
   }
 
   async function handleDelete() {
@@ -160,14 +194,35 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
 
   const specs = [
     p?.smwsCode && { label: "SMWS Code", value: <span className="font-mono">{p.smwsCode}</span> },
-    producer && { label: "Distillery", value: producer.name },
+    producer && { label: p?.category === "wine" ? "Producer" : "Distillery", value: producer.name },
     producer?.region && { label: "Region", value: `${producer.region.name}, ${producer.region.country}` },
     p?.category && { label: "Category", value: p.category },
     p?.subcategory && { label: "Style", value: p.subcategory },
+    p?.vintage && { label: "Vintage", value: p.vintage },
+    p?.drinkFrom && p?.drinkUntil && { label: "Drink Window", value: `${p.drinkFrom} – ${p.drinkUntil}` },
+    p?.drinkFrom && !p?.drinkUntil && { label: "Drink From", value: p.drinkFrom },
+    !p?.drinkFrom && p?.drinkUntil && { label: "Drink Until", value: p.drinkUntil },
     p?.age && { label: "Age", value: `${p.age} years` },
     p?.abv && { label: "ABV", value: `${p.abv}%` },
     p?.caskType && { label: "Cask", value: p.caskType },
-    item.quantity > 0 && { label: "Quantity", value: `${item.quantity} bottle${item.quantity !== 1 ? "s" : ""}` },
+    item.quantity > 0 && {
+      label: "Quantity",
+      value: (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleQuantityChange(item.quantity - 1)}
+            disabled={item.quantity <= 1 || quantitySaving}
+            className="w-6 h-6 flex items-center justify-center rounded border border-gold/30 text-gold hover:border-gold/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm leading-none"
+          >−</button>
+          <span>{item.quantity} {item.quantity === 1 ? "bottle" : "bottles"}</span>
+          <button
+            onClick={() => handleQuantityChange(item.quantity + 1)}
+            disabled={quantitySaving}
+            className="w-6 h-6 flex items-center justify-center rounded border border-gold/30 text-gold hover:border-gold/60 disabled:opacity-30 transition-colors text-sm leading-none"
+          >+</button>
+        </div>
+      ),
+    },
     item.purchasePrice && { label: "Purchase Price", value: `$${item.purchasePrice.toFixed(2)}` },
     item.purchaseDate && { label: "Purchased", value: new Date(item.purchaseDate).toLocaleDateString() },
   ].filter(Boolean) as { label: string; value: React.ReactNode }[];
@@ -305,12 +360,47 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
             </table>
           </div>
 
-          {p?.description && (
-            <div className="bg-navy-light border border-gold/15 rounded-lg p-4">
-              <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Description</h3>
-              <p className="text-sm text-gray-300 leading-relaxed">{p.description}</p>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs text-gray-500 uppercase tracking-wider">
+                {p?.category === "wine" ? "Tasting Notes" : "Description"}
+              </h3>
+              <button
+                onClick={() => { setEditingDescription(!editingDescription); setEditDescription(p?.description ?? ""); }}
+                className="text-xs text-gray-500 hover:text-gold transition-colors"
+              >
+                {editingDescription ? "Cancel" : "Edit"}
+              </button>
             </div>
-          )}
+            {editingDescription ? (
+              <>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={4}
+                  placeholder={p?.category === "wine" ? "Flavours, aromas, food pairing…" : "Description…"}
+                  className="w-full text-sm bg-navy-light border border-white/10 rounded p-2 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-gold/40 resize-none"
+                />
+                <button
+                  onClick={async () => { await handleSaveDescription(); setEditingDescription(false); }}
+                  disabled={savingDescription}
+                  className="mt-2 text-xs px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded border border-gold/20 transition-colors"
+                >
+                  {savingDescription ? "Saving…" : "Save"}
+                </button>
+              </>
+            ) : (
+              <div className="bg-navy-light border border-gold/10 rounded-lg px-4 py-3 min-h-[4rem]">
+                {p?.description ? (
+                  <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{p.description}</p>
+                ) : (
+                  <p className="text-sm text-gray-600 italic">
+                    {p?.category === "wine" ? "No tasting notes added" : "No description added"}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           <div>
             <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Status</h3>

@@ -31,28 +31,24 @@ async function trySmwsScrape(smwsCode: string): Promise<ImageResult | null> {
   }
 }
 
-async function googleImageSearch(query: string): Promise<ImageResult[]> {
-  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-  const cx = process.env.GOOGLE_SEARCH_CX;
-  if (!apiKey || !cx) return [];
-
+async function bingImageSearch(query: string): Promise<ImageResult[]> {
   try {
-    const params = new URLSearchParams({
-      key: apiKey,
-      cx,
-      searchType: "image",
-      q: query,
-      num: "6",
-    });
-    const res = await fetch(`https://www.googleapis.com/customsearch/v1?${params}`, {
+    const q = encodeURIComponent(query);
+    const res = await fetch(`https://www.bing.com/images/search?q=${q}&first=1`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return [];
-    const data = await res.json();
-    return (data.items ?? []).map((item: { link: string; title: string; displayLink: string }) => ({
-      url: item.link,
-      title: item.title,
-      source: item.displayLink,
+    const html = await res.text();
+    const matches = [...html.matchAll(/mediaurl=(https?[^&"]+)/g)];
+    return matches.slice(0, 6).map((m) => ({
+      url: decodeURIComponent(m[1]),
+      title: query,
+      source: new URL(decodeURIComponent(m[1])).hostname,
     }));
   } catch {
     return [];
@@ -84,10 +80,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const producer = item.product?.producerId
     ? (await db.producer.findUnique({ where: { id: item.product.producerId } }))?.name ?? ""
     : "";
-  const query = [name, producer, "whisky bottle"].filter(Boolean).join(" ");
+  const category = item.product?.category ?? "spirits";
+  const categoryTerm = category === "wine" ? "wine bottle" : category === "spirits" ? "bottle" : "whisky bottle";
+  const query = [name, producer, categoryTerm].filter(Boolean).join(" ");
 
-  const googleResults = await googleImageSearch(query);
-  results.push(...googleResults);
+  const bingResults = await bingImageSearch(query);
+  results.push(...bingResults);
 
   return NextResponse.json(results.slice(0, 6));
 }

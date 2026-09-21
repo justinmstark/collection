@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
       caskType: body.caskType ?? null,
       description: body.description ?? null,
       smwsCode: body.smwsCode ?? null,
+      vintage: body.vintage ? parseInt(body.vintage) : null,
+      drinkFrom: body.drinkFrom ? parseInt(body.drinkFrom) : null,
+      drinkUntil: body.drinkUntil ? parseInt(body.drinkUntil) : null,
     },
   });
 

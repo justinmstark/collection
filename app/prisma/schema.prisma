@@ -47,6 +47,9 @@ model Product {
   imageUrl    String?
   barcode     String?
   smwsCode    String?
+  vintage     Int?
+  drinkFrom   Int?
+  drinkUntil  Int?
   createdAt   DateTime         @default(now())
   items       CollectionItem[]
 }
