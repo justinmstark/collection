@@ -4,6 +4,8 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
 COPY package*.json ./
 RUN npm ci
+# Install sharp binary for linux-musl (Alpine) — the default install targets the host OS
+RUN npm install --os=linux --libc=musl --cpu=x64 sharp
 
 # Stage 2: build
 FROM node:22-alpine AS builder
