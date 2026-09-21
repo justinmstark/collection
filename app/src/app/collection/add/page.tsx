@@ -114,6 +114,9 @@ export default function AddBottlePage() {
         caskType: (b.caskType as string) ?? "",
         description: (b.description as string) ?? "",
         smwsCode: (b.smwsCode as string) ?? "",
+        vintage: "",
+        drinkFrom: "",
+        drinkUntil: "",
       };
       setForm(bottleForm);
       setConfidence((b.confidence as string) ?? null);
