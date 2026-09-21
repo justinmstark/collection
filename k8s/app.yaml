@@ -59,7 +59,6 @@ spec:
     - port: 3000
       targetPort: 3000
 ---
-# Replace YOUR_DOMAIN with your actual domain (e.g. collection.example.com).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -70,7 +69,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: YOUR_DOMAIN
+    - host: collection.justinstark.info
       http:
         paths:
           - path: /

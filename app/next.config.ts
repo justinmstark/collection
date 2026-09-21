@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "localhost" },
       { protocol: "http", hostname: "minio" },
       // k8s: replace YOUR_DOMAIN with your actual MinIO ingress hostname
-      { protocol: "https", hostname: "minio.YOUR_DOMAIN" },
+      { protocol: "https", hostname: "minio.collection.justinstark.info" },
     ],
   },
 };
