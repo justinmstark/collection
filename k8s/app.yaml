@@ -13,6 +13,8 @@ spec:
       labels:
         app: collection-app
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       # Runs prisma db push before the app starts to keep schema in sync
       initContainers:
         - name: migrate
