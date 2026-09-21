@@ -6,6 +6,8 @@ import { uploadImage } from "@/lib/s3";
 import { removeBackground } from "@/lib/bgremove";
 import { randomUUID } from "crypto";
 
+export const dynamic = 'force-dynamic';
+
 type Params = { params: Promise<{ id: string }> };
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];

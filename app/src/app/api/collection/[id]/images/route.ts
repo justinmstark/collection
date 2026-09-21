@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { uploadImage } from "@/lib/s3";
 import { randomUUID } from "crypto";
 
+export const dynamic = 'force-dynamic';
+
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
