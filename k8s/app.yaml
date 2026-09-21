@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collection-app
+  namespace: collection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: collection-app
+  template:
+    metadata:
+      labels:
+        app: collection-app
+    spec:
+      # Runs prisma db push before the app starts to keep schema in sync
+      initContainers:
+        - name: migrate
+          image: ghcr.io/justinmstark/collection:latest
+          command: [npx, prisma, db, push, --skip-generate]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: collection-secrets
+                  key: DATABASE_URL
+      containers:
+        - name: app
+          image: ghcr.io/justinmstark/collection:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: collection-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collection-app
+  namespace: collection
+spec:
+  selector:
+    app: collection-app
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+# Replace YOUR_DOMAIN with your actual domain (e.g. collection.example.com).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: collection
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: YOUR_DOMAIN
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: collection-app
+                port:
+                  number: 3000

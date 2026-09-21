@@ -1,0 +1,74 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        id: tag
+        run: echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          # MINIO_PUBLIC_URL must be set in repo secrets (Settings → Secrets → Actions)
+          # e.g. https://minio.your-domain.com
+          build-args: |
+            NEXT_PUBLIC_MINIO_PUBLIC_URL=${{ secrets.MINIO_PUBLIC_URL }}
+            NEXT_PUBLIC_MINIO_BUCKET=collection-images
+          tags: |
+            ${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        # Store your k3s kubeconfig in repo secrets as KUBECONFIG
+        # Get it from your k3s node: cat /etc/rancher/k3s/k3s.yaml
+        # Replace 127.0.0.1 with your server's public IP/hostname
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Apply manifests
+        run: kubectl apply -f k8s/
+
+      - name: Deploy new image
+        run: |
+          kubectl set image deployment/collection-app \
+            app=${{ needs.build.outputs.image_tag }} \
+            -n collection
+          kubectl rollout status deployment/collection-app \
+            -n collection --timeout=5m
