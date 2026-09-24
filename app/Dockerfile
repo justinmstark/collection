@@ -37,7 +37,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 # Add Prisma CLI so migrations don't need npx/npm at runtime
-COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
+# COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 COPY --from=deps /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 USER nextjs
