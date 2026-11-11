@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
   app:
@@ -30,7 +29,7 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio:latest
+    image: docker.io/pgsty/minio:RELEASE.2026-08-04T00-00-00Z  # official minio/minio images were withdrawn
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -43,7 +42,7 @@ services:
     restart: unless-stopped
 
   minio-init:
-    image: minio/mc:latest
+    image: docker.io/pgsty/mc:RELEASE.2026-11-09T00-00-00Z
     depends_on:
       - minio
     entrypoint: >

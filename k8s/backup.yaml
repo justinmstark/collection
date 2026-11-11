@@ -1,0 +1,104 @@
+# Nightly backups to a Longhorn volume: database dump (14-day retention) and an
+# incremental mirror of the image bucket. Runs at 16:00/16:30 UTC (02:00/02:30 AEST).
+# Restore a dump:  pg_restore --clean --if-exists -d "$DATABASE_URL" /backups/db/collection-<ts>.dump
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  namespace: collection
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: collection
+spec:
+  schedule: "0 16 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+            - name: pg-dump
+              image: docker.io/library/postgres:17-alpine
+              envFrom:
+                - secretRef:
+                    name: collection-db
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  mkdir -p /backups/db
+                  f=/backups/db/collection-$(date -u +%Y%m%d-%H%M).dump
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$f"
+                  echo "wrote $f ($(du -h "$f" | cut -f1))"
+                  find /backups/db -name 'collection-*.dump' -mtime +14 -delete
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: images-backup
+  namespace: collection
+spec:
+  schedule: "30 16 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+          containers:
+            - name: mc-mirror
+              image: docker.io/pgsty/mc:RELEASE.2026-11-09T00-00-00Z
+              envFrom:
+                - secretRef:
+                    name: collection-minio
+              env:
+                - name: HOME
+                  value: /tmp
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  mkdir -p /backups/images
+                  mc mirror --overwrite local/collection-images /backups/images
+                  echo "mirrored $(find /backups/images -type f | wc -l) images"
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: backups

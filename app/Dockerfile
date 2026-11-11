@@ -22,6 +22,10 @@ ARG NEXT_PUBLIC_MINIO_PUBLIC_URL=http://localhost:9000
 ARG NEXT_PUBLIC_MINIO_BUCKET=collection-images
 ENV NEXT_PUBLIC_MINIO_PUBLIC_URL=$NEXT_PUBLIC_MINIO_PUBLIC_URL
 ENV NEXT_PUBLIC_MINIO_BUCKET=$NEXT_PUBLIC_MINIO_BUCKET
+# Optional: proxy /minio/* to this MinIO URL (rewrites are baked in at build time).
+# Pair with NEXT_PUBLIC_MINIO_PUBLIC_URL=/minio so images are served from the app's own origin.
+ARG MINIO_PROXY_TARGET=
+ENV MINIO_PROXY_TARGET=$MINIO_PROXY_TARGET
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

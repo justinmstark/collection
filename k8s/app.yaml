@@ -1,3 +1,18 @@
+# The collection web app. Config comes from the `collection-app` secret
+# (k8s/create-secrets.sh). Public access is via Cloudflare Tunnel (cloudflared.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: collection-app
+  namespace: collection
+spec:
+  selector:
+    app: collection-app
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,6 +20,11 @@ metadata:
   namespace: collection
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: collection-app
@@ -15,69 +35,50 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-secret
-      # Runs prisma db push before the app starts to keep schema in sync
       initContainers:
+        # Keep the schema in sync with prisma/schema.prisma before the app starts.
         - name: migrate
           image: ghcr.io/justinmstark/collection:latest
+          imagePullPolicy: Always
           command: [node, node_modules/prisma/build/index.js, db, push, --skip-generate]
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: collection-secrets
+                  name: collection-app
                   key: DATABASE_URL
       containers:
         - name: app
           image: ghcr.io/justinmstark/collection:latest
-          ports:
-            - containerPort: 3000
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
-                name: collection-secrets
+                name: collection-app
+          ports:
+            - name: http
+              containerPort: 3000
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
           readinessProbe:
             httpGet:
               path: /api/health
-              port: 3000
-            initialDelaySeconds: 10
+              port: http
             periodSeconds: 10
-            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 30
+            failureThreshold: 4
+          securityContext:
+            allowPrivilegeEscalation: false
           resources:
             requests:
-              memory: 256Mi
               cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 512Mi
-              cpu: 500m
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: collection-app
-  namespace: collection
-spec:
-  selector:
-    app: collection-app
-  ports:
-    - port: 3000
-      targetPort: 3000
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: app-ingress
-  namespace: collection
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: collection.justinstark.info
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: collection-app
-                port:
-                  number: 3000
+              memory: 768Mi

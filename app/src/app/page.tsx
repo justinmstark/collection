@@ -131,9 +131,9 @@ export default function HomePage() {
   return (
     <div>
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-serif text-gold">My Collection</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h1 className="text-2xl font-serif text-gold whitespace-nowrap">My Collection</h1>
+        <div className="flex flex-wrap items-center gap-2 whitespace-nowrap">
           <div className="flex rounded overflow-hidden border border-gold/20">
             <button onClick={() => setView("table")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === "table" ? "bg-gold text-navy" : "bg-navy-light text-gray-400 hover:text-gold"}`}>
               ≡ Table
