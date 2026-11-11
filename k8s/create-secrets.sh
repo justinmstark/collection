@@ -6,9 +6,10 @@
 #
 # TUNNEL_TOKEN is the Cloudflare Tunnel token (Zero Trust -> Networks -> Tunnels).
 # OPENAI_API_KEY is optional (bottle identification). Values are never printed.
+# NEXTAUTH_URL is deliberately unset: AUTH_TRUST_HOST derives the origin per request,
+# so login works both via the tunnel (https) and the LAN NodePort (http).
 set -eu
 NS=collection
-HOST=${PUBLIC_HOST:-collection.justinstark.info}
 
 rand() { openssl rand -hex 24; }
 exists() { kubectl -n "$NS" get secret "$1" >/dev/null 2>&1; }
@@ -38,7 +39,7 @@ if ! exists collection-app; then
   kubectl -n "$NS" create secret generic collection-app \
     --from-literal=DATABASE_URL="postgresql://collection:${DB_PASS}@postgres:5432/collection" \
     --from-literal=NEXTAUTH_SECRET="$(openssl rand -hex 32)" \
-    --from-literal=NEXTAUTH_URL="https://${HOST}" \
+    --from-literal=AUTH_TRUST_HOST=true \
     --from-literal=MINIO_ENDPOINT=minio \
     --from-literal=MINIO_PORT=9000 \
     --from-literal=MINIO_ACCESS_KEY=collection \
