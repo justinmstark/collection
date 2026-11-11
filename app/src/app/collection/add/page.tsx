@@ -44,8 +44,11 @@ const CONFIDENCE_STYLE: Record<string, string> = {
 };
 
 export default function AddBottlePage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login");
+  }, [status, router]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<"upload" | "detecting" | "select" | "form" | "saving">("upload");

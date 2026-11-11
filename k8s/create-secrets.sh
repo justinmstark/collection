@@ -6,6 +6,8 @@
 #
 # TUNNEL_TOKEN is the Cloudflare Tunnel token (Zero Trust -> Networks -> Tunnels).
 # OPENAI_API_KEY is optional (bottle identification). Values are never printed.
+# PUBLIC_COLLECTION_EMAIL (optional) shows that user's collection read-only to
+# anonymous visitors (no prices or notes); signing in is still needed to edit.
 # NEXTAUTH_URL is deliberately unset: AUTH_TRUST_HOST derives the origin per request,
 # so login works both via the tunnel (https) and the LAN NodePort (http).
 set -eu
@@ -46,7 +48,8 @@ if ! exists collection-app; then
     --from-literal=MINIO_SECRET_KEY="$MINIO_PASS" \
     --from-literal=MINIO_BUCKET=collection-images \
     --from-literal=MINIO_PUBLIC_URL=/minio \
-    --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+    --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+    --from-literal=PUBLIC_COLLECTION_EMAIL="${PUBLIC_COLLECTION_EMAIL:-}"
 else
   echo "collection-app exists, keeping it"
 fi

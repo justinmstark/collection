@@ -73,18 +73,20 @@ export default function HomePage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [view, setView] = useState<"table" | "shelf">("table");
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-  }, [status, router]);
+  const readOnly = status !== "authenticated";
 
+  // Anonymous visitors get the public read-only view; 401 means public view is off.
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status === "loading") return;
     setLoading(true);
     fetch("/api/collection")
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 401) { router.push("/login"); return []; }
+        return r.json();
+      })
       .then((data) => { setItems(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [status]);
+  }, [status, router]);
 
   function handleSort(key: SortKey) {
     if (key === sortKey) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -113,7 +115,7 @@ export default function HomePage() {
     });
   }, [items, activeCategory, search, sortKey, sortDir]);
 
-  if (status === "loading" || status === "unauthenticated") {
+  if (status === "loading") {
     return <div className="flex items-center justify-center h-64 text-gray-500">Loading…</div>;
   }
 
@@ -132,7 +134,7 @@ export default function HomePage() {
     <div>
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <h1 className="text-2xl font-serif text-gold whitespace-nowrap">My Collection</h1>
+        <h1 className="text-2xl font-serif text-gold whitespace-nowrap">{readOnly ? "The Collection" : "My Collection"}</h1>
         <div className="flex flex-wrap items-center gap-2 whitespace-nowrap">
           <div className="flex rounded overflow-hidden border border-gold/20">
             <button onClick={() => setView("table")} className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === "table" ? "bg-gold text-navy" : "bg-navy-light text-gray-400 hover:text-gold"}`}>
@@ -142,6 +144,7 @@ export default function HomePage() {
               ⬛ Shelf
             </button>
           </div>
+          {!readOnly && <>
           <a
             href="/api/collection/export"
             download
@@ -155,6 +158,7 @@ export default function HomePage() {
           >
             + Add Bottle
           </Link>
+          </>}
         </div>
       </div>
 
@@ -228,7 +232,7 @@ export default function HomePage() {
                 <ColHeader label="ABV" col="abv" className="text-right" />
                 <ColHeader label="Cask" col="caskType" className="hidden lg:table-cell" />
                 <ColHeader label="Status" col="status" />
-                <ColHeader label="Value" col="value" className="text-right hidden lg:table-cell" />
+                {!readOnly && <ColHeader label="Value" col="value" className="text-right hidden lg:table-cell" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-gold/10">
@@ -245,7 +249,7 @@ export default function HomePage() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-3 py-12 text-center text-gray-500 text-sm">
-                    {search ? "No bottles match your search" : "No bottles yet — add your first bottle above"}
+                    {search ? "No bottles match your search" : readOnly ? "No bottles" : "No bottles yet — add your first bottle above"}
                   </td>
                 </tr>
               ) : (
@@ -326,12 +330,12 @@ export default function HomePage() {
                       </td>
 
                       {/* Value */}
-                      <td className="px-3 py-2 text-right text-gray-300 hidden lg:table-cell whitespace-nowrap">
+                      {!readOnly && <td className="px-3 py-2 text-right text-gray-300 hidden lg:table-cell whitespace-nowrap">
                         {latestValue != null
                           ? new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(latestValue)
                           : <span className="text-gray-600">—</span>
                         }
-                      </td>
+                      </td>}
                     </tr>
                   );
                 })

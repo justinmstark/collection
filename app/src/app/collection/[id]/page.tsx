@@ -73,12 +73,11 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
   const [pasteUrl, setPasteUrl] = useState("");
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-  }, [status, router]);
+  const readOnly = status !== "authenticated";
 
   async function fetchItem() {
     const res = await fetch(`/api/collection/${id}`);
+    if (res.status === 401) { router.push("/login"); return; }
     if (!res.ok) { router.push("/"); return; }
     const data: Item = await res.json();
     setItem(data);
@@ -89,7 +88,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
     setLoading(false);
   }
 
-  useEffect(() => { if (status === "authenticated") fetchItem(); }, [status, id]);
+  useEffect(() => { if (status !== "loading") fetchItem(); }, [status, id]);
 
   async function handleStatusChange(newStatus: string) {
     if (!item) return;
@@ -207,7 +206,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
     p?.caskType && { label: "Cask", value: p.caskType },
     item.quantity > 0 && {
       label: "Quantity",
-      value: (
+      value: readOnly ? `${item.quantity} ${item.quantity === 1 ? "bottle" : "bottles"}` : (
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleQuantityChange(item.quantity - 1)}
@@ -267,7 +266,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
             </div>
           )}
 
-          <div className="mt-4 space-y-3">
+          {!readOnly && <div className="mt-4 space-y-3">
             <button
               onClick={handleFindImages}
               disabled={findingImages}
@@ -331,7 +330,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
             )}
-          </div>
+          </div>}
         </div>
 
         <div className="space-y-6">
@@ -365,12 +364,12 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
               <h3 className="text-xs text-gray-500 uppercase tracking-wider">
                 {p?.category === "wine" ? "Tasting Notes" : "Description"}
               </h3>
-              <button
+              {!readOnly && <button
                 onClick={() => { setEditingDescription(!editingDescription); setEditDescription(p?.description ?? ""); }}
                 className="text-xs text-gray-500 hover:text-gold transition-colors"
               >
                 {editingDescription ? "Cancel" : "Edit"}
-              </button>
+              </button>}
             </div>
             {editingDescription ? (
               <>
@@ -402,6 +401,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
             )}
           </div>
 
+          {!readOnly && <>
           <div>
             <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Status</h3>
             <div className="flex gap-2">
@@ -450,6 +450,7 @@ export default function BottleDetailPage({ params }: { params: Promise<{ id: str
               {deleting ? "Deleting…" : "Remove from collection"}
             </button>
           </div>
+          </>}
         </div>
       </div>
     </div>

@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getViewer, publicItem } from "@/lib/viewer";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const viewer = await getViewer();
+  if (!viewer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const userId = (session.user as { id: string }).id;
+  const { userId } = viewer;
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(items);
+  return NextResponse.json(viewer.readOnly ? items.map(publicItem) : items);
 }
 
 export async function POST(req: NextRequest) {

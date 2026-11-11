@@ -21,14 +21,16 @@ function Nav() {
           <Link href="/" className="text-sm text-gray-300 hover:text-gold transition-colors">
             Collection
           </Link>
-          <Link href="/collection/add" className="text-sm text-gray-300 hover:text-gold transition-colors">
-            Add Bottle
-          </Link>
+          {session && (
+            <Link href="/collection/add" className="text-sm text-gray-300 hover:text-gold transition-colors">
+              Add Bottle
+            </Link>
+          )}
           {session ? (
             <div className="flex items-center gap-4">
               <span className="hidden md:inline text-xs text-gray-500">{session.user?.email}</span>
               <button
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={() => signOut({ callbackUrl: "/" })}
                 className="text-xs text-gray-400 hover:text-gold transition-colors"
               >
                 Sign out

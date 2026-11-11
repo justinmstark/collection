@@ -3,17 +3,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteImage } from "@/lib/s3";
+import { getViewer, publicItem } from "@/lib/viewer";
 
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const viewer = await getViewer();
+  if (!viewer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const userId = (session.user as { id: string }).id;
+  const { userId } = viewer;
 
   const item = await db.collectionItem.findFirst({
     where: { id, userId },
@@ -25,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   });
 
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(item);
+  return NextResponse.json(viewer.readOnly ? publicItem(item) : item);
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
